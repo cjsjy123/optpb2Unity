@@ -65,11 +65,11 @@ namespace Google.Protobuf
         /// </summary>
         public static readonly int DefaultBufferSize = 4096;
 
-        private readonly bool leaveOpen;
-        private readonly byte[] buffer;
-        private readonly int limit;
+        private bool leaveOpen;
+        private byte[] buffer;
+        private int limit;
         private int position;
-        private readonly Stream output;
+        private Stream output;
 
         #region Construction
         /// <summary>
@@ -88,20 +88,12 @@ namespace Google.Protobuf
         /// </summary>
         private CodedOutputStream(byte[] buffer, int offset, int length)
         {
-            this.output = null;
-            this.buffer = buffer;
-            this.position = offset;
-            this.limit = offset + length;
-            leaveOpen = true; // Simple way of avoiding trying to dispose of a null reference
+            Reset( buffer,offset, length);
         }
 
         private CodedOutputStream(Stream output, byte[] buffer, bool leaveOpen)
         {
-            this.output = ProtoPreconditions.CheckNotNull(output, nameof(output));
-            this.buffer = buffer;
-            this.position = 0;
-            this.limit = buffer.Length;
-            this.leaveOpen = leaveOpen;
+            Reset(output, buffer, leaveOpen);
         }
 
         /// <summary>
@@ -144,7 +136,89 @@ namespace Google.Protobuf
         public CodedOutputStream(Stream output, int bufferSize, bool leaveOpen) : this(output, new byte[bufferSize], leaveOpen)
         {
         }
+        /// <summary>
+        /// Reset Stream
+        /// </summary>
+        /// <param name="output"></param>
+        /// <param name="buffer"></param>
+        /// <param name="leaveOpen"></param>
+        internal void Reset(Stream output, byte[] buffer, bool leaveOpen)
+        {
+            this.output = ProtoPreconditions.CheckNotNull(output, nameof(output));
+            this.buffer = buffer;
+            this.position = 0;
+            this.limit = buffer.Length;
+            this.leaveOpen = leaveOpen;
+        }
+        /// <summary>
+        /// Reset Stream
+        /// </summary>
+        /// <param name="output"></param>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="leaveOpen"></param>
+        internal void Reset(Stream output, byte[] buffer,int offset, bool leaveOpen)
+        {
+            this.output = ProtoPreconditions.CheckNotNull(output, nameof(output));
+            this.buffer = buffer;
+            this.position = offset;
+            this.limit = buffer.Length;
+            this.leaveOpen = leaveOpen;
+        }
+        /// <summary>
+        /// Reset Stream
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <param name="offset"></param>
+        /// <param name="length"></param>
+        internal void Reset(byte[] buffer, int offset, int length)
+        {
+            this.output = null;
+            this.buffer = buffer;
+            this.position = offset;
+            this.limit = offset + length;
+            leaveOpen = true; // Simple way of avoiding trying to dispose of a null reference
+        }
+        /// <summary>
+        ///  Reset Stream
+        /// </summary>
+        /// <param name="offset"></param>
+        /// <param name="length"></param>
+        internal void Reset(int offset, int length)
+        {
+            this.output = null;
+            this.position = offset;
+            this.limit = offset + length;
+            leaveOpen = true; // Simple way of avoiding trying to dispose of a null reference
+        }
+        /// <summary>
+        ///  Reset Stream
+        /// </summary>
+        /// <param name="output"></param>
+        /// <param name="offset"></param>
+        /// <param name="length"></param>
+        internal void Reset(Stream output, int offset, int length)
+        {
+            this.output = ProtoPreconditions.CheckNotNull(output, nameof(output));
+            this.position = offset;
+            this.limit = offset + length;
+            leaveOpen = true; // Simple way of avoiding trying to dispose of a null reference
+        }
         #endregion
+        /// <summary>
+        /// return buffer Capacity
+        /// </summary>
+        public int Capacity
+        {
+            get
+            {
+                if(buffer == null)
+                {
+                    return 0;
+                }
+                return buffer.Length;
+            }
+        }
 
         /// <summary>
         /// Returns the current position in the stream, or the position in the output buffer

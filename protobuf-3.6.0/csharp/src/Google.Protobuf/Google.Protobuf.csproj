@@ -27,7 +27,7 @@
     - Visual Studio.
     -->
   <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
-    <TargetFrameworks>netstandard1.0</TargetFrameworks>
+    <TargetFrameworks>net35;netstandard1.0</TargetFrameworks>
   </PropertyGroup>
 
 </Project>

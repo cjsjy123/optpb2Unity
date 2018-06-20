@@ -30,6 +30,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #endregion
 
+#define POOL
 using System.IO;
 
 namespace Google.Protobuf
@@ -39,6 +40,119 @@ namespace Google.Protobuf
     /// </summary>
     public static class MessageExtensions
     {
+#if POOL
+        private static CodedOutputStream _sharedOutSteam;
+
+        private static CodedInputStream _sharedInputSteam;
+#endif
+
+        private static CodedInputStream GetInputSteam( Stream  input)
+        {
+#if POOL
+            if (_sharedInputSteam == null)
+            {
+                byte[] result = new byte[input.Length];
+                _sharedInputSteam = new CodedInputStream(input, result,0, 0, false);
+            }
+            else
+            {
+                long size = input.Length;
+                if (_sharedInputSteam.Capacity == size)
+                {
+                    _sharedInputSteam.Reset(input,0, 0, false);
+                }
+                else
+                {
+                    _sharedInputSteam.Reset(input, new byte[size],0, 0, false);
+                }
+            }
+            return _sharedInputSteam;
+#else
+            return new CodedInputStream(input);
+#endif
+        }
+
+        private static CodedInputStream GetInputSteam( byte[] data, int offset, int length)
+        {
+#if POOL
+            if (_sharedInputSteam == null)
+            {
+                _sharedInputSteam = new CodedInputStream(data,offset,length);
+            }
+            else
+            {
+                _sharedInputSteam.Reset(data, offset,length, true);
+            }
+            return _sharedInputSteam;
+#else
+            return new CodedInputStream(data,offset,length);
+#endif
+        }
+
+        private static CodedOutputStream GetOutSteam(IMessage message,Stream steam)
+        {
+#if POOL
+            if(_sharedOutSteam == null)
+            {
+                _sharedOutSteam = new CodedOutputStream(steam,message.CalculateSize());
+            }
+            else
+            {
+                int size = message.CalculateSize();
+                if (_sharedOutSteam.Capacity == size)
+                {
+                    _sharedOutSteam.Reset(steam,0, size);
+                }
+                else
+                {
+                    _sharedOutSteam.Reset(steam,new byte[size], 0,false);
+                }
+            }
+            return _sharedOutSteam;
+#else
+            return new CodedOutputStream(steam, message.CalculateSize());
+#endif
+        }
+
+        private static CodedOutputStream GetOutSteam( IMessage message,out byte[] result)
+        {
+#if POOL
+            if (_sharedOutSteam == null)
+            {
+                result = new byte[message.CalculateSize()];
+                _sharedOutSteam = new CodedOutputStream(result);
+            }
+            else
+            {
+                result = new byte[message.CalculateSize()];
+                _sharedOutSteam.Reset(result, 0, result.Length);
+            }
+            return _sharedOutSteam;
+#else
+            result = new byte[message.CalculateSize()];
+            return new CodedOutputStream(result);
+#endif
+        }
+        /// <summary>
+        /// clear Pool
+        /// </summary>
+        public static void PoolDispose()
+        {
+#if POOL
+            if(_sharedInputSteam != null)
+            {
+                _sharedInputSteam.Dispose();
+                _sharedInputSteam = null;
+            }
+
+            if (_sharedOutSteam != null)
+            {
+                _sharedOutSteam.Dispose();
+                _sharedOutSteam = null;
+            }
+#endif
+        }
+
         /// <summary>
         /// Merges data from the given byte array into an existing message.
         /// </summary>
@@ -93,8 +207,9 @@ namespace Google.Protobuf
         public static byte[] ToByteArray(this IMessage message)
         {
             ProtoPreconditions.CheckNotNull(message, "message");
-            byte[] result = new byte[message.CalculateSize()];
-            CodedOutputStream output = new CodedOutputStream(result);
+
+            byte[] result = null;
+            CodedOutputStream output = GetOutSteam(message,out result);
             message.WriteTo(output);
             output.CheckNoSpaceLeft();
             return result;
@@ -105,11 +220,12 @@ namespace Google.Protobuf
         /// </summary>
         /// <param name="message">The message to write to the stream.</param>
         /// <param name="output">The stream to write to.</param>
+        /// <param name="leaveopen">The stream leaveopen.</param>
         public static void WriteTo(this IMessage message, Stream output)
         {
             ProtoPreconditions.CheckNotNull(message, "message");
             ProtoPreconditions.CheckNotNull(output, "output");
-            CodedOutputStream codedOutput = new CodedOutputStream(output);
+            CodedOutputStream codedOutput = GetOutSteam(message,output);
             message.WriteTo(codedOutput);
             codedOutput.Flush();
         }
@@ -123,7 +239,7 @@ namespace Google.Protobuf
         {
             ProtoPreconditions.CheckNotNull(message, "message");
             ProtoPreconditions.CheckNotNull(output, "output");
-            CodedOutputStream codedOutput = new CodedOutputStream(output);
+            CodedOutputStream codedOutput = GetOutSteam(message, output);
             codedOutput.WriteRawVarint32((uint)message.CalculateSize());
             message.WriteTo(codedOutput);
             codedOutput.Flush();
@@ -145,7 +261,7 @@ namespace Google.Protobuf
         {
             ProtoPreconditions.CheckNotNull(message, "message");
             ProtoPreconditions.CheckNotNull(data, "data");
-            CodedInputStream input = new CodedInputStream(data);
+            CodedInputStream input = GetInputSteam(data,0,data.Length);
             input.DiscardUnknownFields = discardUnknownFields;
             message.MergeFrom(input);
             input.CheckReadEndOfStreamTag();
@@ -155,7 +271,7 @@ namespace Google.Protobuf
         {
             ProtoPreconditions.CheckNotNull(message, "message");
             ProtoPreconditions.CheckNotNull(data, "data");
-            CodedInputStream input = new CodedInputStream(data, offset, length);
+            CodedInputStream input = GetInputSteam(data, offset, length);
             input.DiscardUnknownFields = discardUnknownFields;
             message.MergeFrom(input);
             input.CheckReadEndOfStreamTag();
@@ -175,7 +291,7 @@ namespace Google.Protobuf
         {
             ProtoPreconditions.CheckNotNull(message, "message");
             ProtoPreconditions.CheckNotNull(input, "input");
-            CodedInputStream codedInput = new CodedInputStream(input);
+            CodedInputStream codedInput = GetInputSteam( input);
             codedInput.DiscardUnknownFields = discardUnknownFields;
             message.MergeFrom(codedInput);
             codedInput.CheckReadEndOfStreamTag();

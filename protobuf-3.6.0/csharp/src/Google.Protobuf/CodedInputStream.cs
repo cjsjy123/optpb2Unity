@@ -57,12 +57,12 @@ namespace Google.Protobuf
         /// Whether to leave the underlying stream open when disposing of this stream.
         /// This is always true when there's no stream.
         /// </summary>
-        private readonly bool leaveOpen;
+        private bool leaveOpen;
 
         /// <summary>
         /// Buffer of data read from the stream or provided at construction time.
         /// </summary>
-        private readonly byte[] buffer;
+        private byte[] buffer;
 
         /// <summary>
         /// The index of the buffer at which we need to refill from the stream (if there is one).
@@ -79,7 +79,7 @@ namespace Google.Protobuf
         /// The stream to read further input from, or null if the byte array buffer was provided
         /// directly on construction, with no further data available.
         /// </summary>
-        private readonly Stream input;
+        private Stream input;
 
         /// <summary>
         /// The last tag we read. 0 indicates we've read to the end of the stream
@@ -111,8 +111,8 @@ namespace Google.Protobuf
 
         private int recursionDepth = 0;
 
-        private readonly int recursionLimit;
-        private readonly int sizeLimit;
+        private int recursionLimit;
+        private int sizeLimit;
 
         #region Construction
         // Note that the checks are performed such that we don't end up checking obviously-valid things
@@ -168,13 +168,7 @@ namespace Google.Protobuf
         /// </summary>
         internal CodedInputStream(Stream input, byte[] buffer, int bufferPos, int bufferSize, bool leaveOpen)
         {
-            this.input = input;
-            this.buffer = buffer;
-            this.bufferPos = bufferPos;
-            this.bufferSize = bufferSize;
-            this.sizeLimit = DefaultSizeLimit;
-            this.recursionLimit = DefaultRecursionLimit;
-            this.leaveOpen = leaveOpen;
+            Reset(input,buffer,bufferPos, bufferSize,leaveOpen);
         }
 
         /// <summary>
@@ -199,7 +193,64 @@ namespace Google.Protobuf
             this.sizeLimit = sizeLimit;
             this.recursionLimit = recursionLimit;
         }
+
+        internal void Reset(Stream input, byte[] buffer, int bufferPos, int bufferSize, bool leaveOpen)
+        {
+            this.input = input;
+            this.buffer = buffer;
+            this.bufferPos = bufferPos;
+            this.bufferSize = bufferSize;
+            this.sizeLimit = DefaultSizeLimit;
+            this.recursionLimit = DefaultRecursionLimit;
+            this.leaveOpen = leaveOpen;
+        }
+
+        internal void Reset( byte[] buffer, int bufferPos, int bufferSize, bool leaveOpen)
+        {
+            this.input = null;
+            this.buffer = buffer;
+            this.bufferPos = bufferPos;
+            this.bufferSize = bufferSize;
+            this.sizeLimit = DefaultSizeLimit;
+            this.recursionLimit = DefaultRecursionLimit;
+            this.leaveOpen = leaveOpen;
+        }
+
+        internal void Reset(Stream input, int bufferPos, int bufferSize, bool leaveOpen)
+        {
+            this.input = input;
+            this.bufferPos = bufferPos;
+            this.bufferSize = bufferSize;
+            this.sizeLimit = DefaultSizeLimit;
+            this.recursionLimit = DefaultRecursionLimit;
+            this.leaveOpen = leaveOpen;
+        }
+
+        internal void Reset(int bufferPos, int bufferSize, bool leaveOpen)
+        {
+            this.bufferPos = bufferPos;
+            this.bufferSize = bufferSize;
+            this.sizeLimit = DefaultSizeLimit;
+            this.recursionLimit = DefaultRecursionLimit;
+            this.leaveOpen = leaveOpen;
+        }
+
         #endregion
+
+        /// <summary>
+        /// return buffer Capacity
+        /// </summary>
+        public int Capacity
+        {
+            get
+            {
+                if (buffer == null)
+                {
+                    return 0;
+                }
+                return buffer.Length;
+            }
+        }
 
         /// <summary>
         /// Creates a <see cref="CodedInputStream"/> with the specified size and recursion limits, reading

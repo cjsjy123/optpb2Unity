@@ -57,6 +57,43 @@ namespace Google.Protobuf.Collections
 
         private T[] array = EmptyArray;
         private int count = 0;
+        /// <summary>
+        /// the data array Capacity
+        /// </summary>
+        public int Capacity
+        {
+            get
+            {
+                return array.Length;
+            }
+            set
+            {
+                value = Math.Max(0, value);
+                if(value != array.Length)
+                {
+                    if(array.Length < value)
+                    {
+                        this.EnsureSize(value);
+                    }
+                    else if (array.Length > value)//drop data
+                    {
+                        if (value == 0)
+                        {
+                            this.array = EmptyArray;
+                            this.count = 0;
+                        }
+                        else
+                        {
+                            var tmp = new T[value];
+                            Array.Copy(array, 0, tmp, 0, value);
+                            array = tmp;
+                            this.count = Math.Min(count,value);
+                        }
+                    }
+                    
+                }
+            }
+        }
 
         /// <summary>
         /// Creates a deep clone of this repeated field.
